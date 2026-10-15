@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-header: #f1f5f9;
+    --bg-header-hover: #e2e8f0;
+    --border-color: #cbd5e1;
+    --border-light: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --selection-bg: rgba(59, 130, 246, 0.15);
+    --selection-border: #3b82f6;
+    --active-cell-border: #2563eb;
+    --search-match-bg: rgba(254, 240, 138, 0.6);
+    --search-active-bg: rgba(250, 204, 21, 0.9);
+  }
+
+  .dark {
+    --bg-main: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-header: #1e293b;
+    --bg-header-hover: #334155;
+    --border-color: #334155;
+    --border-light: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --selection-bg: rgba(59, 130, 246, 0.25);
+    --selection-border: #60a5fa;
+    --active-cell-border: #3b82f6;
+    --search-match-bg: rgba(161, 98, 7, 0.5);
+    --search-active-bg: rgba(234, 179, 8, 0.8);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+}
+
+/* Scrollbar styles for spreadsheet feel */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Modal containment per modern-web-guidance */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+/* Prevent text selection when dragging table cells */
+.table-viewport {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Table grid borders */
+.cell-border-r {
+  border-right: 1px solid var(--border-light);
+}
+
+.cell-border-b {
+  border-bottom: 1px solid var(--border-light);
+}
