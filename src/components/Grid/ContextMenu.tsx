@@ -33,6 +33,8 @@ interface ContextMenuProps {
   onInsertColRight: () => void;
   onDeleteCols: () => void;
   onAutoFitCol: () => void;
+  onSortAsc: () => void;
+  onSortDesc: () => void;
   onCut: () => void;
   onCopy: () => void;
   onCopyMarkdown: () => void;
@@ -52,6 +54,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onInsertColRight,
   onDeleteCols,
   onAutoFitCol,
+  onSortAsc,
+  onSortDesc,
   onCut,
   onCopy,
   onCopyMarkdown,
@@ -83,8 +87,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   if (!position) return null;
 
   // Ensure menu stays within window boundaries
-  const menuWidth = 220;
-  const menuHeight = 360;
+  const menuWidth = 240;
+  const menuHeight = 420;
   const x = Math.min(position.x, window.innerWidth - menuWidth - 8);
   const y = Math.min(position.y, window.innerHeight - menuHeight - 8);
 
@@ -126,12 +130,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     <div
       ref={menuRef}
       style={{ left: `${x}px`, top: `${y}px` }}
-      className="fixed z-50 min-w-[220px] bg-white dark:bg-slate-800 rounded-md shadow-xl border border-slate-200 dark:border-slate-700 py-1 select-none animate-in fade-in duration-100"
+      className="fixed z-50 min-w-[240px] bg-white dark:bg-slate-800 rounded-md shadow-xl border border-slate-200 dark:border-slate-700 py-1 select-none animate-in fade-in duration-100"
     >
       <Item icon={Scissors} label="Cut" shortcut="Ctrl+X" onClick={onCut} />
       <Item icon={Copy} label="Copy" shortcut="Ctrl+C" onClick={onCopy} />
       <Item icon={Clipboard} label="Paste" shortcut="Ctrl+V" onClick={onPaste} />
       <Item icon={Trash2} label="Clear Contents" shortcut="Del" onClick={onClear} />
+
+      <Divider />
+
+      {/* Sorting */}
+      <Item icon={ArrowUp} label="Sort Ascending (A → Z, 0 → 9)" onClick={onSortAsc} />
+      <Item icon={ArrowDown} label="Sort Descending (Z → A, 9 → 0)" onClick={onSortDesc} />
 
       <Divider />
 

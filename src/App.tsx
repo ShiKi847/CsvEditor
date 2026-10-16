@@ -47,14 +47,18 @@ export const App: React.FC = () => {
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('csveditor_theme');
+    if (saved) return saved === 'dark';
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('csveditor_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('csveditor_theme', 'light');
     }
   }, [isDarkMode]);
 
@@ -132,6 +136,51 @@ export const App: React.FC = () => {
     scope: 'all',
   });
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+
+  // Zoom state
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
+
+  const applyZoom = useCallback((newZoom: number) => {
+    const clamped = Math.min(2.5, Math.max(0.5, Number(newZoom.toFixed(2))));
+    setZoomLevel(clamped);
+
+    // Apply native electron zoom
+    if (window.electronAPI?.setZoomFactor) {
+      window.electronAPI.setZoomFactor(clamped);
+    } else {
+      // Fallback CSS zoom
+      (document.body.style as unknown as { zoom: string }).zoom = String(clamped);
+    }
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    applyZoom(zoomLevel + 0.1);
+  }, [applyZoom, zoomLevel]);
+
+  const handleZoomOut = useCallback(() => {
+    applyZoom(zoomLevel - 0.1);
+  }, [applyZoom, zoomLevel]);
+
+  const handleZoomReset = useCallback(() => {
+    applyZoom(1.0);
+  }, [applyZoom]);
+
+  // Mouse wheel zoom (Ctrl + Mouse Wheel)
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          applyZoom(zoomLevel + 0.1);
+        } else if (e.deltaY > 0) {
+          applyZoom(zoomLevel - 0.1);
+        }
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, [applyZoom, zoomLevel]);
 
   // Active tab reference
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
@@ -235,13 +284,13 @@ export const App: React.FC = () => {
 
   // File loading
   const loadContentIntoTab = useCallback(
-    (content: string, fileName: string, fileHandle?: FileSystemFileHandle) => {
+    (content: string, fileName: string, fileHandle?: FileSystemFileHandle, filePath?: string) => {
       const parsed = parseCsv(content);
       const newId = `tab-${Date.now()}`;
       const newDoc: TabDocument = {
         id: newId,
         title: fileName,
-        filePath: fileName,
+        filePath: filePath || fileName,
         fileHandle,
         data: parsed.data,
         headers: parsed.dialect.hasHeader ? parsed.data[0] || [] : [],
@@ -265,20 +314,30 @@ export const App: React.FC = () => {
     []
   );
 
+  // Listen to file opened via Windows CLI / Open With in Electron
+  useEffect(() => {
+    if (window.electronAPI?.onFileOpenedFromCli) {
+      window.electronAPI.onFileOpenedFromCli(data => {
+        loadContentIntoTab(data.content, data.fileName, undefined, data.filePath);
+      });
+    }
+  }, [loadContentIntoTab]);
+
   const handleOpenFile = async () => {
     const res = await openFile();
     if (res) {
-      loadContentIntoTab(res.content, res.fileName, res.fileHandle);
+      loadContentIntoTab(res.content, res.fileName, res.fileHandle, res.filePath);
     }
   };
 
   const handleSaveFile = async () => {
     const csvContent = stringifyCsv(activeTab.data, activeTab.dialect);
-    const res = await saveFile(csvContent, activeTab.title, activeTab.fileHandle);
+    const res = await saveFile(csvContent, activeTab.title, activeTab.fileHandle, activeTab.filePath);
     if (res) {
       updateActiveTab(tab => ({
         ...tab,
         title: res.fileName,
+        filePath: res.filePath || res.fileName,
         fileHandle: res.fileHandle,
         isDirty: false,
       }));
@@ -292,6 +351,7 @@ export const App: React.FC = () => {
       updateActiveTab(tab => ({
         ...tab,
         title: res.fileName,
+        filePath: res.filePath || res.fileName,
         fileHandle: res.fileHandle,
         isDirty: false,
       }));
@@ -369,11 +429,41 @@ export const App: React.FC = () => {
         setIsCommandPaletteOpen(true);
         return;
       }
+
+      // Zoom In (handles Ctrl+=, Ctrl++, NumpadAdd, etc. even with Chinese IME)
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd' || e.keyCode === 187 || e.keyCode === 107)
+      ) {
+        e.preventDefault();
+        handleZoomIn();
+        return;
+      }
+
+      // Zoom Out (handles Ctrl+-, NumpadSubtract)
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract' || e.keyCode === 189 || e.keyCode === 109)
+      ) {
+        e.preventDefault();
+        handleZoomOut();
+        return;
+      }
+
+      // Zoom Reset (Ctrl+0, Numpad0)
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0' || e.keyCode === 48 || e.keyCode === 96)
+      ) {
+        e.preventDefault();
+        handleZoomReset();
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [activeTabId, handleCloseTab, handleNewTab, handleOpenFile, handleSaveAsFile, handleSaveFile]);
+  }, [activeTabId, handleCloseTab, handleNewTab, handleOpenFile, handleSaveAsFile, handleSaveFile, handleZoomIn, handleZoomOut, handleZoomReset]);
 
   // Search Engine & Matching logic
   const findMatches: FindMatch[] = useMemo(() => {
@@ -506,15 +596,19 @@ export const App: React.FC = () => {
   };
 
   // Sorting
-  const handleSortColumn = (colIndex: number) => {
-    const currentSort = activeTab.sortState;
+  const handleSortColumn = (colIndex: number, forcedDirection?: 'asc' | 'desc') => {
     let nextDirection: 'asc' | 'desc' = 'asc';
-    if (currentSort && currentSort.colIndex === colIndex) {
-      if (currentSort.direction === 'asc') nextDirection = 'desc';
-      else {
-        // Clear sort
-        updateActiveTab(tab => ({ ...tab, sortState: null }));
-        return;
+    if (forcedDirection) {
+      nextDirection = forcedDirection;
+    } else {
+      const currentSort = activeTab.sortState;
+      if (currentSort && currentSort.colIndex === colIndex) {
+        if (currentSort.direction === 'asc') nextDirection = 'desc';
+        else {
+          // Clear sort
+          updateActiveTab(tab => ({ ...tab, sortState: null }));
+          return;
+        }
       }
     }
 
@@ -607,6 +701,9 @@ export const App: React.FC = () => {
       { id: 'fill-empty', category: 'Transform', title: 'Fill Empty Cells From Above', action: () => handleDataChange(fillEmptyFromAbove(activeTab.data), 'Fill Empty From Above') },
       { id: 'dedup', category: 'Transform', title: 'Remove Duplicate Rows', action: () => handleDataChange(removeDuplicateRows(activeTab.data, activeTab.dialect.hasHeader), 'Remove Duplicates') },
       { id: 'theme-toggle', category: 'View', title: 'Toggle Dark / Light Theme', action: () => setIsDarkMode(!isDarkMode) },
+      { id: 'zoom-in', category: 'View', title: 'Zoom In', shortcut: 'Ctrl + / Ctrl Wheel', action: handleZoomIn },
+      { id: 'zoom-out', category: 'View', title: 'Zoom Out', shortcut: 'Ctrl - / Ctrl Wheel', action: handleZoomOut },
+      { id: 'zoom-reset', category: 'View', title: 'Reset Zoom (100%)', shortcut: 'Ctrl 0', action: handleZoomReset },
     ],
     [
       handleNewTab,
@@ -615,6 +712,9 @@ export const App: React.FC = () => {
       handleSaveAsFile,
       handleUndo,
       handleRedo,
+      handleZoomIn,
+      handleZoomOut,
+      handleZoomReset,
       isFilterOpen,
       handleDataChange,
       activeTab.data,
@@ -637,7 +737,7 @@ export const App: React.FC = () => {
   }, [activeTab.data, activeTab.dialect.hasHeader, activeTab.headers]);
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans">
+    <div className="flex flex-col w-full h-full overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans">
       {/* Tab Bar */}
       <TabBar
         tabs={tabs}
@@ -713,6 +813,8 @@ export const App: React.FC = () => {
           for (let c = minC; c <= maxC; c++) colsToDelete.push(c);
           handleDataChange(deleteColumns(activeTab.data, colsToDelete), 'Delete Columns');
         }}
+        onSortAsc={() => handleSortColumn(activeTab.selection.activeCol, 'asc')}
+        onSortDesc={() => handleSortColumn(activeTab.selection.activeCol, 'desc')}
         onTrimWhitespace={() => handleDataChange(trimWhitespace(activeTab.data), 'Trim Whitespace')}
         onTransformCase={mode =>
           handleDataChange(transformCase(activeTab.data, mode, activeTab.selection), `Case ${mode}`)
@@ -775,7 +877,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Main Virtual Grid Viewport */}
-      <div className="relative flex-1 w-full h-full overflow-hidden flex flex-col">
+      <div className="relative flex-1 min-h-0 w-full overflow-hidden flex flex-col">
         <VirtualGrid
           data={filteredData}
           headers={effectiveHeaders}
@@ -828,6 +930,10 @@ export const App: React.FC = () => {
         hasHeader={activeTab.dialect.hasHeader}
         dialect={activeTab.dialect}
         isDirty={activeTab.isDirty}
+        zoomLevel={zoomLevel}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onZoomReset={handleZoomReset}
       />
 
       {/* Modals */}

@@ -1,14 +1,51 @@
 export interface OpenFileResult {
   content: string;
   fileName: string;
+  filePath?: string;
   fileHandle?: FileSystemFileHandle;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      isElectron: boolean;
+      openFile: () => Promise<{ filePath: string; fileName: string; content: string } | null>;
+      saveFile: (
+        content: string,
+        suggestedName: string,
+        existingPath?: string
+      ) => Promise<{ filePath: string; fileName: string } | null>;
+      writeFile: (filePath: string, content: string) => Promise<boolean>;
+      setZoomFactor?: (factor: number) => void;
+      getZoomFactor?: () => number;
+      onFileOpenedFromCli: (callback: (data: { filePath: string; fileName: string; content: string }) => void) => void;
+    };
+  }
 }
 
 export function useFileSystem() {
   /**
-   * Open file using File System Access API or HTML file input fallback
+   * Open file using native Electron dialog or File System Access API or HTML file input fallback
    */
   const openFile = async (): Promise<OpenFileResult | null> => {
+    // 1. Native Electron Dialog
+    if (window.electronAPI?.openFile) {
+      try {
+        const res = await window.electronAPI.openFile();
+        if (res) {
+          return {
+            content: res.content,
+            fileName: res.fileName,
+            filePath: res.filePath,
+          };
+        }
+        return null;
+      } catch (err) {
+        console.warn('Electron openFile failed', err);
+      }
+    }
+
+    // 2. Modern Web File System Access API
     if ('showOpenFilePicker' in window) {
       try {
         const [handle] = await (window as unknown as { showOpenFilePicker: (options: unknown) => Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
@@ -30,6 +67,7 @@ export function useFileSystem() {
         return {
           content,
           fileName: file.name,
+          filePath: file.name,
           fileHandle: handle,
         };
       } catch (err: unknown) {
@@ -38,7 +76,7 @@ export function useFileSystem() {
       }
     }
 
-    // Fallback using invisible input element
+    // 3. Fallback using invisible input element
     return new Promise(resolve => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -50,6 +88,7 @@ export function useFileSystem() {
           resolve({
             content,
             fileName: file.name,
+            filePath: file.name,
           });
         } else {
           resolve(null);
@@ -60,14 +99,31 @@ export function useFileSystem() {
   };
 
   /**
-   * Save content directly to existing file handle (Ctrl+S) or prompt Save As
+   * Save content directly to disk or prompt Save As dialog
    */
   const saveFile = async (
     content: string,
     suggestedName: string,
-    existingHandle?: FileSystemFileHandle
-  ): Promise<{ fileName: string; fileHandle?: FileSystemFileHandle } | null> => {
-    // Direct in-place save if handle is available
+    existingHandle?: FileSystemFileHandle,
+    existingPath?: string
+  ): Promise<{ fileName: string; filePath?: string; fileHandle?: FileSystemFileHandle } | null> => {
+    // 1. Native Electron File Save
+    if (window.electronAPI?.saveFile) {
+      try {
+        const res = await window.electronAPI.saveFile(content, suggestedName, existingPath);
+        if (res) {
+          return {
+            fileName: res.fileName,
+            filePath: res.filePath,
+          };
+        }
+        return null;
+      } catch (err) {
+        console.warn('Electron saveFile failed', err);
+      }
+    }
+
+    // 2. Direct in-place save if Web file handle is available
     if (existingHandle && 'createWritable' in existingHandle) {
       try {
         const writable = await (existingHandle as unknown as { createWritable: () => Promise<FileSystemWritableFileStream> }).createWritable();
@@ -75,6 +131,7 @@ export function useFileSystem() {
         await writable.close();
         return {
           fileName: suggestedName,
+          filePath: suggestedName,
           fileHandle: existingHandle,
         };
       } catch (err) {
@@ -82,7 +139,7 @@ export function useFileSystem() {
       }
     }
 
-    // Modern Save As dialog
+    // 3. Modern Web Save As dialog
     if ('showSaveFilePicker' in window) {
       try {
         const handle = await (window as unknown as { showSaveFilePicker: (options: unknown) => Promise<FileSystemFileHandle> }).showSaveFilePicker({
@@ -105,6 +162,7 @@ export function useFileSystem() {
 
         return {
           fileName: handle.name,
+          filePath: handle.name,
           fileHandle: handle,
         };
       } catch (err: unknown) {
@@ -113,7 +171,7 @@ export function useFileSystem() {
       }
     }
 
-    // Fallback download
+    // 4. Fallback download
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -124,7 +182,7 @@ export function useFileSystem() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    return { fileName: suggestedName };
+    return { fileName: suggestedName, filePath: suggestedName };
   };
 
   /**

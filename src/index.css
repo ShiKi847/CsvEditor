@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --bg-main: #f8fafc;
@@ -51,6 +53,7 @@ html, body, #root {
   font-size: 13px;
   background-color: var(--bg-main);
   color: var(--text-primary);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 /* Scrollbar styles for spreadsheet feel */
@@ -80,6 +83,35 @@ html, body, #root {
   background: transparent;
 }
 
+/* Sleek horizontal scrollbar for toolbar when zoomed or on narrow screens */
+.toolbar-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.toolbar-scroll::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 3px;
+}
+
+.toolbar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 3px;
+  border: none;
+}
+
+.toolbar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.85);
+}
+
+/* Utility to hide scrollbars while preserving scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Modal containment per modern-web-guidance */
 dialog:modal {
   overscroll-behavior: contain;
@@ -96,13 +128,4 @@ dialog::backdrop {
 .table-viewport {
   user-select: none;
   -webkit-user-select: none;
-}
-
-/* Table grid borders */
-.cell-border-r {
-  border-right: 1px solid var(--border-light);
-}
-
-.cell-border-b {
-  border-bottom: 1px solid var(--border-light);
 }

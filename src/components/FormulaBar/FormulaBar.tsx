@@ -33,16 +33,16 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
   };
 
   return (
-    <div className="flex items-center h-7 px-2 bg-slate-50 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700 text-xs gap-2 select-none">
+    <div className="flex items-center h-7 min-h-[28px] px-2 bg-slate-50 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700 text-xs gap-2 select-none whitespace-nowrap">
       {/* Cell Coordinate Pill */}
-      <div className="min-w-[65px] px-1.5 py-0.5 text-center font-mono font-semibold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded border border-slate-300 dark:border-slate-600">
+      <div className="shrink-0 min-w-[65px] px-1.5 py-0.5 text-center font-mono font-semibold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded border border-slate-300 dark:border-slate-600 whitespace-nowrap">
         {address}
       </div>
 
-      <div className="h-4 w-px bg-slate-300 dark:bg-slate-700" />
+      <div className="shrink-0 h-4 w-px bg-slate-300 dark:bg-slate-700" />
 
       {/* Formula / Cell Content Input */}
-      <div className="relative flex-1 flex items-center">
+      <div className="relative flex-1 min-w-[120px] flex items-center">
         <input
           type="text"
           value={val}
@@ -53,7 +53,7 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
       </div>
 
       {/* Length indicator */}
-      <span className="text-[11px] text-slate-400 font-mono px-1">
+      <span className="shrink-0 text-[11px] text-slate-400 font-mono px-1 whitespace-nowrap">
         {val.length} chars
       </span>
 
@@ -61,9 +61,9 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({
       <button
         onClick={onOpenMultiline}
         title="Open in Multiline Inspector (Alt+Enter)"
-        className="p-1 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+        className="shrink-0 p-1 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors cursor-pointer"
       >
-        <Maximize2 className="w-3.5 h-3.5" />
+        <Maximize2 className="w-3.5 h-3.5 shrink-0" />
       </button>
     </div>
   );

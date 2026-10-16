@@ -1,14 +1,42 @@
 {
   "name": "csv-editor",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "High-performance desktop CSV/TSV spreadsheet editor",
+  "author": "makoto",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
-    "dev": "vite",
+    "start": "electron .",
+    "dev": "vite --open",
+    "app": "cross-env NODE_ENV=development concurrently -k \"vite\" \"electron .\"",
     "build": "tsc -b && vite build",
+    "build:app": "npm run build && electron-builder --win dir",
+    "dist": "npm run build && electron-builder --win portable",
     "test": "vitest run",
     "lint": "oxlint",
     "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.csveditor.app",
+    "productName": "CsvEditor",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "dir",
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "CsvEditor-${version}.exe"
+    }
   },
   "dependencies": {
     "@types/papaparse": "^5.5.2",
@@ -24,6 +52,10 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
     "oxlint": "^1.81.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

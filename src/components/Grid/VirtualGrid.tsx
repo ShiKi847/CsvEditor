@@ -30,7 +30,7 @@ interface VirtualGridProps {
   onDataChange: (newData: string[][], description?: string) => void;
   onSelectionChange: (newSelection: SelectionRange) => void;
   onColumnWidthsChange: (newWidths: Record<number, number>) => void;
-  onSortColumn: (colIndex: number) => void;
+  onSortColumn: (colIndex: number, forcedDirection?: 'asc' | 'desc') => void;
   onOpenMultilineModal: (row: number, col: number) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -145,28 +145,28 @@ export const VirtualGrid: React.FC<VirtualGridProps> = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const cellTop = displayRow * rowHeight;
+    const cellTop = headerHeight + displayRow * rowHeight;
     const cellBottom = cellTop + rowHeight;
-    const cellLeft = colOffsets[col];
+    const cellLeft = rowNumberWidth + colOffsets[col];
     const cellRight = cellLeft + getColWidth(col);
 
     const scrollTop = container.scrollTop;
-    const scrollBottom = scrollTop + container.clientHeight - headerHeight;
+    const scrollBottom = scrollTop + container.clientHeight;
     const scrollLeft = container.scrollLeft;
-    const scrollRight = scrollLeft + container.clientWidth - rowNumberWidth;
+    const scrollRight = scrollLeft + container.clientWidth;
 
-    if (cellTop < scrollTop) {
-      container.scrollTop = cellTop;
+    if (cellTop < scrollTop + headerHeight) {
+      container.scrollTop = cellTop - headerHeight;
     } else if (cellBottom > scrollBottom) {
-      container.scrollTop = cellBottom - (container.clientHeight - headerHeight);
+      container.scrollTop = cellBottom - container.clientHeight;
     }
 
-    if (cellLeft < scrollLeft) {
-      container.scrollLeft = cellLeft;
+    if (cellLeft < scrollLeft + rowNumberWidth) {
+      container.scrollLeft = cellLeft - rowNumberWidth;
     } else if (cellRight > scrollRight) {
-      container.scrollLeft = cellRight - (container.clientWidth - rowNumberWidth);
+      container.scrollLeft = cellRight - container.clientWidth;
     }
-  }, [colOffsets, getColWidth, headerHeight, rowHeight]);
+  }, [colOffsets, getColWidth, headerHeight, rowHeight, rowNumberWidth]);
 
   // Start editing active cell
   const startEditing = useCallback((initialChar?: string) => {
@@ -612,7 +612,6 @@ export const VirtualGrid: React.FC<VirtualGridProps> = ({
   };
 
   const handleAutoFitColumn = (colIndex: number) => {
-    // Measure content width by finding maximum string length in column
     let maxLen = 4;
     for (let r = 0; r < data.length; r++) {
       const cell = data[r]?.[colIndex] || '';
@@ -663,115 +662,123 @@ export const VirtualGrid: React.FC<VirtualGridProps> = ({
 
   return (
     <div className="relative flex-1 w-full h-full overflow-hidden bg-white dark:bg-slate-900 select-none">
-      {/* Pinned Top-Left Corner Button */}
-      <div
-        onClick={() => {
-          onSelectionChange({
-            startRow: 0,
-            startCol: 0,
-            endRow: Math.max(0, displayRows - 1),
-            endCol: Math.max(0, displayCols - 1),
-            activeRow: 0,
-            activeCol: 0,
-          });
-        }}
-        style={{ width: `${rowNumberWidth}px`, height: `${headerHeight}px` }}
-        className="absolute top-0 left-0 z-30 flex items-center justify-center bg-slate-200 dark:bg-slate-800 border-r border-b border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-        title="Select All (Ctrl+A)"
-      >
-        <div className="w-2.5 h-2.5 border-t-2 border-l-2 border-slate-400 dark:border-slate-500" />
-      </div>
-
       {/* Main Scrollable Viewport */}
       <div
         ref={containerRef}
         className="table-viewport w-full h-full overflow-auto"
         style={{
-          paddingTop: `${headerHeight}px`,
-          paddingLeft: `${rowNumberWidth}px`,
+          position: 'relative',
         }}
       >
-        {/* Pinned Column Headers (Horizontally scrolled with viewport) */}
-        <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            left: 0,
-            width: `${totalWidth}px`,
-            height: `${headerHeight}px`,
-            zIndex: 20,
-          }}
-        >
-          <GridHeader
-            startCol={startCol}
-            endCol={endCol}
-            colOffsets={colOffsets}
-            getColWidth={getColWidth}
-            columnHeaders={headers}
-            sortState={sortState}
-            selectedCols={selectedCols}
-            onSelectColumn={handleSelectColumn}
-            onResizeColumn={handleResizeColumn}
-            onAutoFitColumn={handleAutoFitColumn}
-            onSortColumn={onSortColumn}
-            onContextMenu={(e, c) => {
-              setContextMenu({
-                x: e.clientX,
-                y: e.clientY,
-                targetType: 'colHeader',
-                rowIndex: 0,
-                colIndex: c,
-              });
-            }}
-          />
-        </div>
-
-        {/* Pinned Row Numbers (Vertically scrolled with viewport) */}
-        <div
-          style={{
-            position: 'sticky',
-            left: 0,
-            top: `${headerHeight}px`,
-            width: `${rowNumberWidth}px`,
-            height: `${totalHeight}px`,
-            zIndex: 10,
-          }}
-        >
-          <GridRowNumbers
-            startRow={startRow}
-            endRow={endRow}
-            rowHeight={rowHeight}
-            selectedRows={selectedRows}
-            rowOffset={hasHeader ? 2 : 1}
-            onSelectRow={handleSelectRow}
-            onContextMenu={(e, r) => {
-              setContextMenu({
-                x: e.clientX,
-                y: e.clientY,
-                targetType: 'rowHeader',
-                rowIndex: r,
-                colIndex: 0,
-              });
-            }}
-          />
-        </div>
-
-        {/* Grid Canvas / Virtualized Cell Container */}
+        {/* Full Scroll Canvas: width = rowNumberWidth + totalWidth, height = headerHeight + totalHeight */}
         <div
           style={{
             position: 'relative',
-            width: `${totalWidth}px`,
-            height: `${totalHeight}px`,
-            marginTop: `-${totalHeight}px`,
+            width: `${rowNumberWidth + totalWidth}px`,
+            height: `${headerHeight + totalHeight}px`,
           }}
         >
+          {/* Pinned Top Header Row */}
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              left: 0,
+              height: `${headerHeight}px`,
+              width: `${rowNumberWidth + totalWidth}px`,
+              zIndex: 30,
+            }}
+          >
+            {/* Top-Left Corner Box (Sticky at 0, 0) */}
+            <div
+              onClick={() => {
+                onSelectionChange({
+                  startRow: 0,
+                  startCol: 0,
+                  endRow: Math.max(0, displayRows - 1),
+                  endCol: Math.max(0, displayCols - 1),
+                  activeRow: 0,
+                  activeCol: 0,
+                });
+              }}
+              style={{
+                position: 'sticky',
+                left: 0,
+                top: 0,
+                width: `${rowNumberWidth}px`,
+                height: `${headerHeight}px`,
+                zIndex: 40,
+                float: 'left',
+              }}
+              className="flex items-center justify-center bg-slate-200 dark:bg-slate-800 border-r border-b border-slate-300 dark:border-slate-700 cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+              title="Select All (Ctrl+A)"
+            >
+              <div className="w-2.5 h-2.5 border-t-2 border-l-2 border-slate-400 dark:border-slate-500" />
+            </div>
+
+            {/* Column Headers (Offset by rowNumberWidth so column 0 never overlaps row numbers) */}
+            <GridHeader
+              startCol={startCol}
+              endCol={endCol}
+              colOffsets={colOffsets}
+              getColWidth={getColWidth}
+              leftOffset={rowNumberWidth}
+              columnHeaders={headers}
+              sortState={sortState}
+              selectedCols={selectedCols}
+              onSelectColumn={handleSelectColumn}
+              onResizeColumn={handleResizeColumn}
+              onAutoFitColumn={handleAutoFitColumn}
+              onSortColumn={onSortColumn}
+              onContextMenu={(e, c) => {
+                setContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  targetType: 'colHeader',
+                  rowIndex: 0,
+                  colIndex: c,
+                });
+              }}
+            />
+          </div>
+
+          {/* Pinned Row Numbers Column (Sticky at left: 0) */}
+          <div
+            style={{
+              position: 'sticky',
+              left: 0,
+              width: `${rowNumberWidth}px`,
+              height: `${totalHeight}px`,
+              zIndex: 20,
+              float: 'left',
+            }}
+          >
+            <GridRowNumbers
+              startRow={startRow}
+              endRow={endRow}
+              rowHeight={rowHeight}
+              selectedRows={selectedRows}
+              rowOffset={hasHeader ? 2 : 1}
+              onSelectRow={handleSelectRow}
+              onContextMenu={(e, r) => {
+                setContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  targetType: 'rowHeader',
+                  rowIndex: r,
+                  colIndex: 0,
+                });
+              }}
+            />
+          </div>
+
           {/* Selected Range Highlight Overlay */}
           {(minRow !== maxRow || minCol !== maxCol) && (
             <div
               style={{
                 position: 'absolute',
-                top: `${selTop}px`,
-                left: `${selLeft}px`,
+                top: `${headerHeight + selTop}px`,
+                left: `${rowNumberWidth + selLeft}px`,
                 width: `${selWidth}px`,
                 height: `${selHeight}px`,
                 pointerEvents: 'none',
@@ -785,8 +792,8 @@ export const VirtualGrid: React.FC<VirtualGridProps> = ({
           <div
             style={{
               position: 'absolute',
-              top: `${activeTop}px`,
-              left: `${activeLeft}px`,
+              top: `${headerHeight + activeTop}px`,
+              left: `${rowNumberWidth + activeLeft}px`,
               width: `${activeWidth}px`,
               height: `${rowHeight}px`,
               pointerEvents: 'none',
@@ -811,8 +818,8 @@ export const VirtualGrid: React.FC<VirtualGridProps> = ({
             <CellEditor
               initialValue={editingCell.initialValue}
               position={{
-                top: editingCell.row * rowHeight,
-                left: colOffsets[editingCell.col],
+                top: headerHeight + editingCell.row * rowHeight,
+                left: rowNumberWidth + colOffsets[editingCell.col],
                 width: getColWidth(editingCell.col),
                 height: rowHeight,
               }}
@@ -821,14 +828,14 @@ export const VirtualGrid: React.FC<VirtualGridProps> = ({
             />
           )}
 
-          {/* Visible Grid Cells */}
+          {/* Visible Grid Cells (Offset by rowNumberWidth and headerHeight) */}
           {visibleRowIndices.map(r => {
-            const top = r * rowHeight;
+            const top = headerHeight + r * rowHeight;
             const realR = toDataRow(r);
             const rowData = data[realR] || [];
 
             return visibleColIndices.map(c => {
-              const left = colOffsets[c];
+              const left = rowNumberWidth + colOffsets[c];
               const width = getColWidth(c);
               const cellValue = rowData[c] ?? '';
               const isMatch = matchMap.has(`${r},${c}`);
@@ -871,6 +878,16 @@ export const VirtualGrid: React.FC<VirtualGridProps> = ({
       <ContextMenu
         position={contextMenu}
         onClose={() => setContextMenu(null)}
+        onSortAsc={() => {
+          if (contextMenu) {
+            onSortColumn(contextMenu.colIndex, 'asc');
+          }
+        }}
+        onSortDesc={() => {
+          if (contextMenu) {
+            onSortColumn(contextMenu.colIndex, 'desc');
+          }
+        }}
         onInsertRowAbove={() => {
           if (!contextMenu) return;
           const targetIndex = toDataRow(contextMenu.rowIndex);
@@ -911,7 +928,6 @@ export const VirtualGrid: React.FC<VirtualGridProps> = ({
         onCut={cutSelection}
         onCopy={copySelection}
         onCopyMarkdown={async () => {
-          // Format as Markdown table
           const rows: string[][] = [];
           for (let r = minRow; r <= maxRow; r++) {
             const realR = toDataRow(r);

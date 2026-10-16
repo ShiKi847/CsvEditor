@@ -1,6 +1,6 @@
-# SmoothCSV Editor (Web & Desktop Edition)
+# CsvEditor (Desktop & Web Edition)
 
-A professional, high-performance CSV/TSV editor inspired by [SmoothCSV](https://github.com/kohii/smoothcsv3). Designed to feel like the *"VS Code of tabular editors"*, it combines Excel-like spreadsheet editing convenience with robust handling of RFC 4180 CSV edge cases (multiline cells, escaped quotes, custom delimiters, encodings, and large files).
+A professional, high-performance CSV/TSV spreadsheet editor. Designed to feel like the *"VS Code of tabular editors"*, it combines Excel-like spreadsheet editing convenience with robust handling of RFC 4180 CSV edge cases (multiline cells, escaped quotes, custom delimiters, encodings, and large files).
 
 ---
 
@@ -36,7 +36,7 @@ A professional, high-performance CSV/TSV editor inspired by [SmoothCSV](https://
   - Multiline Notes & Quotes (complex RFC 4180 edge cases with internal newlines).
   - 500-Row Performance Test.
 
-### 3. 🔍 Search & Replace (SmoothCSV Style)
+### 3. 🔍 Search & Replace
 - Floating / dockable search panel (`Ctrl+F`).
 - **Real-Time Match Highlighting**: Highlights matching cells dynamically across the entire virtual grid.
 - **Options**:
@@ -89,7 +89,7 @@ A professional, high-performance CSV/TSV editor inspired by [SmoothCSV](https://
 - **Right-Click Context Menu**: Copy as Markdown table, copy as JSON, inspect in multiline editor.
 
 ### 8. ⌨️ Command Palette (`Ctrl+Shift+P`)
-- VS Code / SmoothCSV 3 style command palette for lightning-fast keyboard-first productivity.
+- VS Code style command palette for lightning-fast keyboard-first productivity.
 
 ---
 
